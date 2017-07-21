@@ -4,7 +4,8 @@
     
     Data types supported:
     Vertex
-    Line Polygon
+    Line
+    Polygon
     
     In order to render any of these, call the `render()` function on the graphics context.
     eg:
@@ -83,6 +84,10 @@ this.strangl = this.strangl||{};
         this.fillcolor=fillcolor;
     }
     
+    Vertex.prototype.copy = function() {
+        return new Vertex(this.x, this.y, this.z, this.radius, this.strokecolor, this.style, this.fillcolor, this.name);
+    };
+    
     Vertex.prototype.toString = function() {return "sglVertex"};
     
     // Transform functions:
@@ -109,8 +114,10 @@ this.strangl = this.strangl||{};
         let c = Math.cos(angle);
         let s = Math.sin(angle);
         
-        this.y = c*this.y - s*this.z;
-        this.z = c*this.z + s*this.y;
+        let y = c*this.y - s*this.z;
+        let z = c*this.z + s*this.y;
+        this.y = y;
+        this.z = z;
         return this;
     };
     
@@ -118,8 +125,10 @@ this.strangl = this.strangl||{};
         let c = Math.cos(angle);
         let s = Math.sin(angle);
         
-        this.x = c*this.x - s*this.z;
-        this.z = c*this.z + s*this.x;
+        let x = c*this.x - s*this.z;
+        let z = c*this.z + s*this.x;
+        this.x = x;
+        this.z = z;
         return this;
     };
     
@@ -127,8 +136,10 @@ this.strangl = this.strangl||{};
         let c = Math.cos(angle);
         let s = Math.sin(angle);
         
-        this.x = c*this.x - s*this.y;
-        this.y = c*this.y + s*this.x;
+        x = c*this.x - s*this.y;
+        y = c*this.y + s*this.x;
+        this.x = x;
+        this.y = y;
         return this;
     };
     
@@ -207,6 +218,10 @@ this.strangl = this.strangl||{};
         this.color = color; this.style = style;
     }
     
+    Line.prototype.copy = function() {
+        return new Line(this.start, this.end, this.color, this.style, this.name);
+    };
+    
     Line.prototype.toString = function() {
         return "sglLine";
     };
@@ -274,7 +289,7 @@ this.strangl = this.strangl||{};
     
     /** Polygon data structure
         Constructor:
-            Polygon(a,strokecolor,style,colorRGBA,name)
+            Polygon(vertices,strokecolor,style,colorRGBA,name)
         Properties:
             vertices (Array): An array of Vertex data.
             // Graphics:
@@ -354,8 +369,8 @@ xxx            Add ambient light to a polygon.
         if(vertices[0] == null)
             throw("Need an Array or something indexable.");
         this.Vlist = new Array(vertices.length);
-        for(let i=0 len=a.length; i<len; i++){
-            this.Vlist[i] = a[i];
+        for(let i=0, len=vertices.length; i<len; i++){
+            this.Vlist[i] = new Vertex(vertices[i].x, vertices[i].y, vertices[i].z);
         }
         this.name = name;
         this.strokecolor = strokecolor;
@@ -381,8 +396,13 @@ xxx            Add ambient light to a polygon.
                             }:JSON.parse(JSON.stringify(props));
     }
     
+    Polygon.prototype.copy = function() {
+        return new Polygon(this.Vlist, this.strokecolor, this.style, this.fillcolor, this.polyAttribs, this.name);
+    };
+    
     Polygon.prototype.setPolyAttrib = function(k,v) {
         this.polyAttribs[k] = v;
+        return this;
     };
     
     Polygon.prototype.toString = function() {
@@ -399,14 +419,19 @@ xxx            Add ambient light to a polygon.
             throw("Null graphics context.");
         
         // Do not render polygon if surface normal faces away from viewer.
-        if(!this.shouldRender())
+        if(!this.shouldRender() || this.fillcolor == null)
             return;
+        
         if(this.fillcolor[3]==null)
             this.fillcolor[3]=1;
         
         let stringFillc = createjs.Graphics.getRGB(this.fillcolor[0], this.fillcolor[1], this.fillcolor[2], this.fillcolor[3]);
+        
         let stringStroke = (this.polyAttribs.renderWire)?this.strokecolor:stringFillc;
-        ctx.s(stringStroke).ss(this.style,0,0,0,true).f(stringFillc)
+        
+        ctx.s(stringStroke)
+        .ss(this.style,0,0,0,true)
+        .f(stringFillc)
         .mt(this.Vlist[0].x, this.Vlist[0].y);
         for(let i=1, len=this.Vlist.length; i<len; i++){
             ctx.lt(this.Vlist[i].x, this.Vlist[i].y);
@@ -469,6 +494,8 @@ xxx            Add ambient light to a polygon.
         if(!(lightsrc instanceof LightSource))
             throw "Expected LightSource";
         this.polyAttribs.lights.push(lightsrc);
+        
+        return this;
     };
     
     Polygon.prototype.applyLights = function() {
@@ -479,7 +506,7 @@ xxx            Add ambient light to a polygon.
                 let dif = lightDiffuse.call(this, lights[i]);
                 effects.push(dif);
             } else if(lights[i].type == "AMBIENT"){
-                let amb = lightAmbient.call(this, lights[i]]);
+                let amb = lightAmbient.call(this, lights[i]);
             } else
                 throw "Lighting type not defined.";
         }
@@ -490,6 +517,7 @@ xxx            Add ambient light to a polygon.
             this.fillcolor[2] += effects[i][2];
             this.fillcolor[3] += effects[i][3];
         }
+        return this;
     };
     
     // Private functions:
@@ -584,7 +612,8 @@ xxx            Add ambient light to a polygon.
     
     Polygon.prototype.getsurfaceNormal = function() {
         let normal = new Float64Array(3);
-        for(let i=0, len=this.Vlist.length; i<len; i++){
+        let p = this.Vlist;
+        for(let i=0, len=p.length; i<len; i++){
             let j=(i+1)%len;
             normal[0] += (p[i].y-p[j].y)*(p[i].z+p[j].z);
             normal[1] += (p[i].z-p[j].z)*(p[i].z+p[j].z);
