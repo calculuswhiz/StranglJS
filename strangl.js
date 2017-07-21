@@ -136,8 +136,8 @@ this.strangl = this.strangl||{};
         let c = Math.cos(angle);
         let s = Math.sin(angle);
         
-        x = c*this.x - s*this.y;
-        y = c*this.y + s*this.x;
+        let x = c*this.x - s*this.y;
+        let y = c*this.y + s*this.x;
         this.x = x;
         this.y = y;
         return this;
